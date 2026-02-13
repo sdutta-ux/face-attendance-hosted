@@ -1,29 +1,29 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Employee Attendance</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Face Recognition Attendance</title>
   <link rel="stylesheet" href="style.css">
+  <script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
+  <script defer src="config.js"></script>
+  <script defer src="client.js"></script>
 </head>
 <body>
-  <h1>Employee Attendance</h1>
+  <h2>Face Recognition Attendance</h2>
 
-  <div class="camera-container">
-    <video id="video" width="640" height="480" autoplay muted></video>
-    <canvas id="overlay" width="640" height="480"></canvas>
+  <div id="camera-area">
+    <video id="video" autoplay muted playsinline width="360" height="270"></video>
+    <canvas id="overlay" width="360" height="270"></canvas>
   </div>
 
-  <div class="controls">
-    <button id="startCamera">Start Camera</button>
-    <button id="register">Register Employee</button>
-    <button id="markAttendance">Mark Attendance</button>
+  <div id="controls">
+    <button id="startBtn">Start Camera</button>
+    <button id="registerBtn">Register Employee</button>
+    <button id="markBtn">Mark Attendance</button>
   </div>
 
-  <p id="status">Status: Idle</p>
+  <div id="status">📸 Tap “Start Camera” to begin.</div>
 
-  <script src="https://cdn.jsdelivr.net/npm/face-api.js"></script>
-  <script src="config.js"></script>
-  <script src="client.js"></script>
+  <a href="admin.html" target="_blank">Go to Admin Dashboard</a>
 </body>
 </html>
