@@ -27,20 +27,12 @@ document.addEventListener('DOMContentLoaded', () => {
    ========================================================== */
 async function startCameraFlow() {
   try {
-    STATUS.innerText = "🔄 Loading face detection models...";
-    const MODEL_URL = "https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/weights/";
-    await Promise.all([
-      faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL),
-      faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL),
-      faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL)
-    ]);
+    STATUS.innerText = "📸 Requesting camera permission...";
 
-    // ✅ Explicit permission request for camera
-    STATUS.innerText = "📸 Please allow camera access...";
-    const devices = await navigator.mediaDevices.enumerateDevices();
-    const hasCamera = devices.some(d => d.kind === "videoinput");
-    if (!hasCamera) throw new Error("No camera found on this device.");
+    // Force permission popup
+    await navigator.mediaDevices.getUserMedia({ video: true });
 
+    // Now start the camera stream
     const stream = await navigator.mediaDevices.getUserMedia({
       video: { facingMode: "user" },
       audio: false
@@ -48,13 +40,16 @@ async function startCameraFlow() {
 
     VIDEO.srcObject = stream;
     await VIDEO.play();
-    STATUS.innerText = "✅ Camera started successfully! Ready to Register or Mark Attendance.";
+
+    STATUS.innerText = "✅ Camera started successfully!";
   } catch (err) {
     console.error("Camera error:", err);
     STATUS.innerText =
-      "❌ Camera access blocked or unavailable.\n\n👉 Fix:\n1️⃣ Tap the lock icon (🔒) in the address bar.\n2️⃣ Go to 'Permissions' → Camera → Allow.\n3️⃣ Reload this page.";
+      "❌ Camera permission denied or not granted.\n" +
+      "👉 Tap lock (🔒) → Permissions → Camera → Allow → Reload.";
   }
 }
+
 
 /* ==========================================================
    LOAD MODELS
