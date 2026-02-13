@@ -1,44 +1,35 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Admin Dashboard</title>
   <link rel="stylesheet" href="style.css">
-</head>
-<body>
-  <h1>Admin Dashboard</h1>
-
-  <h2>Employees</h2>
-  <table id="employeeTable">
-    <thead>
-      <tr>
-        <th>Name</th>
-        <th>Last Attendance</th>
-      </tr>
-    </thead>
-    <tbody></tbody>
-  </table>
-
   <script src="config.js"></script>
   <script>
-    async function fetchEmployees() {
-      try {
-        const res = await fetch(EXEC_URL + "?action=employees");
-        const data = await res.json();
-        const tbody = document.querySelector("#employeeTable tbody");
-        tbody.innerHTML = "";
-        data.forEach(emp => {
-          const tr = document.createElement("tr");
-          tr.innerHTML = `<td>${emp.name}</td><td>${emp.lastAttendance || 'Not yet'}</td>`;
-          tbody.appendChild(tr);
-        });
-      } catch (err) {
-        console.error(err);
-      }
+    async function postAPI(payload) {
+      const res = await fetch(CONFIG.EXEC_URL, { method:'POST', mode:'cors', headers:{ 'Content-Type':'application/json' }, body:JSON.stringify(payload) });
+      return res.json();
     }
 
-    fetchEmployees();
-    setInterval(fetchEmployees, 30000); // refresh every 30 seconds
+    async function listEmployees() {
+      const emps = await postAPI({action:'listEmployees'});
+      const tbody = document.getElementById('empTableBody');
+      tbody.innerHTML = '';
+      emps.forEach(e => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td>${e.empId}</td><td>${e.name}</td><td>${e.category}</td><td>${e.department}</td>`;
+        tbody.appendChild(tr);
+      });
+    }
+
+    document.addEventListener('DOMContentLoaded', listEmployees);
   </script>
+</head>
+<body>
+  <h2>Admin Dashboard</h2>
+  <table border="1" width="100%">
+    <thead><tr><th>ID</th><th>Name</th><th>Category</th><th>Department</th></tr></thead>
+    <tbody id="empTableBody"></tbody>
+  </table>
 </body>
 </html>
