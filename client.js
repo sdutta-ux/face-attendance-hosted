@@ -55,6 +55,14 @@ async function startCameraFlow() {
       "3️⃣ Reload this page.";
   }
 }
+async function checkCameraPermission() {
+  try {
+    const result = await navigator.permissions.query({ name: 'camera' });
+    alert('Camera permission: ' + result.state);
+  } catch (e) {
+    alert('Camera permission API not supported.');
+  }
+}
 
 /* ==========================================================
    LOAD MODELS
