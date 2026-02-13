@@ -1,86 +1,88 @@
-const VIDEO = document.getElementById('video');
-const STATUS = document.getElementById('status');
+// =============================
+// Employee Attendance Client JS
+// =============================
+let video = document.getElementById('video');
+let overlay = document.getElementById('overlay');
+let context = overlay.getContext('2d');
+let faceMatcher;
+let detections = [];
+let descriptors = [];
 
-// Replace with your Apps Script Web App URL
-const CONFIG = {
-  EXEC_URL: "YOUR_APPS_SCRIPT_EXEC_URL_HERE"
-};
+async function loadModels() {
+  await faceapi.nets.tinyFaceDetector.loadFromUri('/models');
+  await faceapi.nets.faceLandmark68Net.loadFromUri('/models');
+  await faceapi.nets.faceRecognitionNet.loadFromUri('/models');
+  document.getElementById('status').innerText = 'Status: Models loaded';
+}
 
-// Add user gesture to start camera
-document.addEventListener('DOMContentLoaded', () => {
-  document.getElementById('startBtn').addEventListener('click', startCameraFlow);
-  document.getElementById('registerBtn').addEventListener('click', registerEmployee);
-  document.getElementById('markBtn').addEventListener('click', markAttendance);
-  STATUS.innerText = '📸 Tap "Start Camera" to begin.';
+async function startCamera() {
+  await loadModels();
+  navigator.mediaDevices.getUserMedia({ video: true })
+    .then(stream => video.srcObject = stream)
+    .catch(err => console.error(err));
+}
+
+video.addEventListener('play', () => {
+  const displaySize = { width: video.width, height: video.height };
+  faceapi.matchDimensions(overlay, displaySize);
+
+  setInterval(async () => {
+    const detectionsData = await faceapi.detectAllFaces(video, new faceapi.TinyFaceDetectorOptions())
+      .withFaceLandmarks().withFaceDescriptors();
+
+    context.clearRect(0, 0, overlay.width, overlay.height);
+
+    if (detectionsData.length > 0) {
+      detectionsData.forEach(fd => {
+        const box = fd.detection.box;
+        context.strokeStyle = 'green';
+        context.lineWidth = 2;
+        context.strokeRect(box.x, box.y, box.width, box.height);
+      });
+      document.getElementById('status').innerText = 'Status: Face detected';
+      detections = detectionsData;
+    } else {
+      document.getElementById('status').innerText = 'Status: No face detected';
+      detections = [];
+    }
+  }, 200);
 });
 
-async function startCameraFlow() {
-  try {
-    STATUS.innerText = "📸 Requesting camera permission...";
-    const stream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: "user" },
-      audio: false
-    });
-    VIDEO.srcObject = stream;
-    await VIDEO.play();
-    STATUS.innerText = "✅ Camera started! Loading face recognition models...";
-
-    const MODEL_URL = "https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/weights/";
-    await Promise.all([
-      faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL),
-      faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL),
-      faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL)
-    ]);
-    STATUS.innerText = "🎯 Camera & models ready! You can Register or Mark Attendance.";
-  } catch (err) {
-    console.error(err);
-    STATUS.innerText = "❌ Camera access denied. Ensure you tap Start Camera and allow permissions in browser settings.";
-  }
-}
-
-// Face capture functions
 async function captureDescriptor() {
-  const options = new faceapi.TinyFaceDetectorOptions({ inputSize: 128, scoreThreshold: 0.35 });
-  const detection = await faceapi.detectSingleFace(VIDEO, options).withFaceLandmarks().withFaceDescriptor();
-  if (!detection) { alert("No face detected. Ensure your face is centered and well-lit."); return null; }
-  return Array.from(detection.descriptor);
+  if (!detections.length) return null;
+  return detections[0].descriptor;
 }
 
-function getFrameBase64() {
-  const canvas = document.createElement('canvas');
-  canvas.width = VIDEO.videoWidth;
-  canvas.height = VIDEO.videoHeight;
-  canvas.getContext('2d').drawImage(VIDEO, 0, 0, canvas.width, canvas.height);
-  return canvas.toDataURL('image/jpeg');
-}
+document.getElementById('startCamera').addEventListener('click', startCamera);
 
-// Post to Apps Script
-async function postAPI(payload) {
-  const res = await fetch(CONFIG.EXEC_URL, {
-    method: 'POST', mode: 'cors',
+document.getElementById('register').addEventListener('click', async () => {
+  const name = prompt('Enter Employee Name:');
+  if (!name) return alert('Name is required');
+  const descriptor = await captureDescriptor();
+  if (!descriptor) return alert('No face detected!');
+
+  const payload = { name, descriptor: Array.from(descriptor) };
+  fetch(EXEC_URL + '?action=register', {
+    method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload)
-  });
-  return res.json();
-}
+  })
+  .then(res => res.json())
+  .then(data => alert(data.message))
+  .catch(err => console.error(err));
+});
 
-// Register
-async function registerEmployee() {
-  const empId = prompt("Employee ID:");
-  if (!empId) return;
-  const name = prompt("Full Name:");
-  if (!name) return;
+document.getElementById('markAttendance').addEventListener('click', async () => {
   const descriptor = await captureDescriptor();
-  if (!descriptor) return;
-  const res = await postAPI({ action:'addEmployee', payload:{ empId, name, descriptor } });
-  if(res && res.status==='ok') alert("✅ Employee registered.");
-}
+  if (!descriptor) return alert('No face detected!');
 
-// Mark Attendance
-async function markAttendance() {
-  const descriptor = await captureDescriptor();
-  if (!descriptor) return;
-  const res = await postAPI({ action:'identify', payload:{ descriptor, image:getFrameBase64() } });
-  if(res && res.found) alert("✅ Attendance marked for " + res.name);
-  else alert("❌ No match found. Please register first.");
-}
+  const payload = { descriptor: Array.from(descriptor) };
+  fetch(EXEC_URL + '?action=mark', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  })
+  .then(res => res.json())
+  .then(data => alert(data.message))
+  .catch(err => console.error(err));
+});
