@@ -22,22 +22,43 @@ document.addEventListener('DOMContentLoaded', () => {
   STATUS.innerText = '📸 Tap Start Camera to begin.';
 });
 
+/* ==========================================================
+   CAMERA START FUNCTION (Fixed for Android HTTPS permission)
+   ========================================================== */
 async function startCameraFlow() {
-  STATUS.innerText = '🔄 Loading models...';
-  await loadModels();
-  STATUS.innerText = '📸 Requesting camera permission...';
   try {
-    const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' }, audio: false });
+    STATUS.innerText = "🔄 Loading face detection models...";
+    const MODEL_URL = "https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/weights/";
+    await Promise.all([
+      faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL),
+      faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL),
+      faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL)
+    ]);
+
+    // ✅ Explicit permission request for camera
+    STATUS.innerText = "📸 Please allow camera access...";
+    const devices = await navigator.mediaDevices.enumerateDevices();
+    const hasCamera = devices.some(d => d.kind === "videoinput");
+    if (!hasCamera) throw new Error("No camera found on this device.");
+
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: "user" },
+      audio: false
+    });
+
     VIDEO.srcObject = stream;
     await VIDEO.play();
-    STATUS.innerText = '✅ Camera started. Ready.';
+    STATUS.innerText = "✅ Camera started successfully! Ready to Register or Mark Attendance.";
   } catch (err) {
-    console.error(err);
-    STATUS.innerText = '❌ Camera failed. Allow camera in site settings.';
-    return;
+    console.error("Camera error:", err);
+    STATUS.innerText =
+      "❌ Camera access blocked or unavailable.\n\n👉 Fix:\n1️⃣ Tap the lock icon (🔒) in the address bar.\n2️⃣ Go to 'Permissions' → Camera → Allow.\n3️⃣ Reload this page.";
   }
 }
 
+/* ==========================================================
+   LOAD MODELS
+   ========================================================== */
 async function loadModels() {
   const MODEL_URL = 'https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/weights/';
   await Promise.all([
@@ -47,6 +68,9 @@ async function loadModels() {
   ]);
 }
 
+/* ==========================================================
+   CAPTURE FACE DESCRIPTOR
+   ========================================================== */
 async function captureDescriptor() {
   try {
     const canvas = document.createElement('canvas');
@@ -54,7 +78,10 @@ async function captureDescriptor() {
     canvas.height = VIDEO.videoHeight;
     const ctx = canvas.getContext('2d');
     ctx.drawImage(VIDEO, 0, 0, canvas.width, canvas.height);
-    const detection = await faceapi.detectSingleFace(canvas, new faceapi.TinyFaceDetectorOptions()).withFaceLandmarks().withFaceDescriptor();
+    const detection = await faceapi
+      .detectSingleFace(canvas, new faceapi.TinyFaceDetectorOptions())
+      .withFaceLandmarks()
+      .withFaceDescriptor();
     if (!detection) return null;
     return Array.from(detection.descriptor);
   } catch (err) {
@@ -63,6 +90,9 @@ async function captureDescriptor() {
   }
 }
 
+/* ==========================================================
+   CAPTURE CURRENT FRAME BASE64 (for logging)
+   ========================================================== */
 function getFrameBase64() {
   const canvas = document.createElement('canvas');
   canvas.width = VIDEO.videoWidth;
@@ -72,37 +102,47 @@ function getFrameBase64() {
   return canvas.toDataURL('image/jpeg');
 }
 
-// Register employee: captures descriptor and sends to server
+/* ==========================================================
+   REGISTER EMPLOYEE
+   ========================================================== */
 async function registerEmployee() {
   const empId = prompt('Employee ID (e.g. E001):');
-  if(!empId) return;
+  if (!empId) return;
   const name = prompt('Full name:');
-  if(!name) return;
-  const category = prompt('Category (Rolled/Unrolled/Contract):','Rolled');
-  const department = prompt('Department:','General');
+  if (!name) return;
+  const category = prompt('Category (Rolled/Unrolled/Contract):', 'Rolled');
+  const department = prompt('Department:', 'General');
 
   STATUS.innerText = '🔍 Capturing face...';
   const descriptor = await captureDescriptor();
-  if(!descriptor) return alert('No face detected. Try again.');
+  if (!descriptor) return alert('No face detected. Try again.');
 
   STATUS.innerText = '📡 Sending registration...';
-  const res = await postAPI({ action: 'addEmployee', payload: { empId, name, category, department, descriptor } });
+  const res = await postAPI({
+    action: 'addEmployee',
+    payload: { empId, name, category, department, descriptor }
+  });
   console.log(res);
-  if(res && res.status==='ok') alert('Employee registered');
+  if (res && res.status === 'ok') alert('✅ Employee registered successfully.');
   STATUS.innerText = '✅ Registration complete.';
 }
 
-// Mark attendance by capturing descriptor and asking server to match
+/* ==========================================================
+   MARK ATTENDANCE
+   ========================================================== */
 async function markAttendance() {
   STATUS.innerText = '🔍 Capturing face...';
   const descriptor = await captureDescriptor();
-  if(!descriptor) return alert('No face detected.');
+  if (!descriptor) return alert('No face detected.');
 
   STATUS.innerText = '📡 Sending for identification...';
-  const res = await postAPI({ action: 'identify', payload: { descriptor, image: getFrameBase64() } });
+  const res = await postAPI({
+    action: 'identify',
+    payload: { descriptor, image: getFrameBase64() }
+  });
   console.log(res);
-  if(res && res.found) {
-    alert('Attendance marked for ' + res.name);
+  if (res && res.found) {
+    alert('✅ Attendance marked for ' + res.name);
     STATUS.innerText = '✅ Attendance marked for ' + res.name;
   } else {
     STATUS.innerText = '❌ No match found. Please register first.';
