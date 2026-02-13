@@ -29,3 +29,19 @@ button {
   margin-top: 15px;
   font-weight: bold;
 }
+
+table {
+  border-collapse: collapse;
+  margin: 20px auto;
+  width: 60%;
+}
+
+th, td {
+  border: 1px solid #ccc;
+  padding: 8px;
+  text-align: center;
+}
+
+th {
+  background: #eee;
+}
