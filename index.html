@@ -1,35 +1,29 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Face Attendance</title>
-  <script defer src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
-  <script defer src="client.js"></script>
-  <style>
-    body { font-family: Arial; padding: 16px; max-width: 820px; margin: auto; }
-    h2 { margin-bottom: 10px; }
-    #camera-area { position: relative; display: inline-block; border:1px solid #ccc; border-radius:10px; overflow:hidden; }
-    video { display: block; width:360px; height:270px; background:#000; }
-    #status { margin-top:12px; color:#333; font-size:14px; white-space: pre-wrap; }
-    button { margin-top:10px; padding:8px 14px; border:none; border-radius:6px; background:#1976d2; color:white; cursor:pointer; }
-    button:hover { background:#1565c0; }
-  </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Employee Attendance</title>
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
+  <h1>Employee Attendance</h1>
 
-<h2>Face Recognition Attendance</h2>
+  <div class="camera-container">
+    <video id="video" width="640" height="480" autoplay muted></video>
+    <canvas id="overlay" width="640" height="480"></canvas>
+  </div>
 
-<div id="camera-area">
-  <video id="video" autoplay muted playsinline></video>
-</div>
+  <div class="controls">
+    <button id="startCamera">Start Camera</button>
+    <button id="register">Register Employee</button>
+    <button id="markAttendance">Mark Attendance</button>
+  </div>
 
-<div>
-  <button id="startBtn">📸 Start Camera</button>
-  <button id="registerBtn">Register Employee</button>
-  <button id="markBtn">Mark Attendance</button>
-</div>
+  <p id="status">Status: Idle</p>
 
-<div id="status">Status: Waiting to start camera...</div>
-
+  <script src="https://cdn.jsdelivr.net/npm/face-api.js"></script>
+  <script src="config.js"></script>
+  <script src="client.js"></script>
 </body>
 </html>
