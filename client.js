@@ -1,4 +1,4 @@
-// client.js - Hosted frontend (mobile camera fixed)
+// client.js - Hosted frontend (mobile camera fixed + prompt guaranteed)
 const VIDEO = document.getElementById('video');
 const STATUS = document.getElementById('status');
 
@@ -20,16 +20,23 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 /* ==========================================================
-   CAMERA START FUNCTION (FORCED PERMISSION VERSION)
+   CAMERA START FUNCTION (instant permission + preview)
    ========================================================== */
 async function startCameraFlow() {
   try {
-    STATUS.innerText = "📸 Checking camera permission...";
+    STATUS.innerText = "📸 Requesting camera permission...";
+    // 👇 Immediate permission request — runs directly on tap
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: "user" },
+      audio: false
+    });
 
-    // ✅ Force Chrome to show permission prompt
-    await navigator.mediaDevices.getUserMedia({ video: true });
+    // ✅ Camera permission granted
+    VIDEO.srcObject = stream;
+    await VIDEO.play();
+    STATUS.innerText = "✅ Camera allowed! Loading face recognition models...";
 
-    STATUS.innerText = "🔄 Loading face recognition models...";
+    // Load models AFTER preview starts
     const MODEL_URL = "https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/weights/";
     await Promise.all([
       faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL),
@@ -37,43 +44,15 @@ async function startCameraFlow() {
       faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL)
     ]);
 
-    STATUS.innerText = "📸 Starting camera stream...";
-    const stream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: "user" },
-      audio: false
-    });
-
-    VIDEO.srcObject = stream;
-    await VIDEO.play();
-    STATUS.innerText = "✅ Camera started successfully! Ready for face capture.";
+    STATUS.innerText = "🎯 Camera & models ready! You can Register or Mark Attendance.";
   } catch (err) {
-    console.error("Camera error:", err);
+    console.error("Camera start error:", err);
     STATUS.innerText =
       "❌ Camera access denied or unavailable.\n\n👉 Fix:\n" +
-      "1️⃣ Tap the lock icon (🔒) in the address bar.\n" +
-      "2️⃣ Go to 'Permissions' → Camera → Allow.\n" +
-      "3️⃣ Reload this page.";
+      "1️⃣ Open Chrome settings → Site settings → Camera\n" +
+      "2️⃣ Find github.io → set to Allow\n" +
+      "3️⃣ Reload this page and tap Start Camera again.";
   }
-}
-async function checkCameraPermission() {
-  try {
-    const result = await navigator.permissions.query({ name: 'camera' });
-    alert('Camera permission: ' + result.state);
-  } catch (e) {
-    alert('Camera permission API not supported.');
-  }
-}
-
-/* ==========================================================
-   LOAD MODELS
-   ========================================================== */
-async function loadModels() {
-  const MODEL_URL = 'https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/weights/';
-  await Promise.all([
-    faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL),
-    faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL),
-    faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL)
-  ]);
 }
 
 /* ==========================================================
@@ -130,7 +109,6 @@ async function registerEmployee() {
     action: 'addEmployee',
     payload: { empId, name, category, department, descriptor }
   });
-  console.log(res);
   if (res && res.status === 'ok') alert('✅ Employee registered successfully.');
   STATUS.innerText = '✅ Registration complete.';
 }
@@ -148,7 +126,6 @@ async function markAttendance() {
     action: 'identify',
     payload: { descriptor, image: getFrameBase64() }
   });
-  console.log(res);
   if (res && res.found) {
     alert('✅ Attendance marked for ' + res.name);
     STATUS.innerText = '✅ Attendance marked for ' + res.name;
