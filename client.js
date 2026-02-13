@@ -4,9 +4,7 @@
 let video = document.getElementById('video');
 let overlay = document.getElementById('overlay');
 let context = overlay.getContext('2d');
-let faceMatcher;
 let detections = [];
-let descriptors = [];
 
 async function loadModels() {
   await faceapi.nets.tinyFaceDetector.loadFromUri('/models');
@@ -27,7 +25,8 @@ video.addEventListener('play', () => {
   faceapi.matchDimensions(overlay, displaySize);
 
   setInterval(async () => {
-    const detectionsData = await faceapi.detectAllFaces(video, new faceapi.TinyFaceDetectorOptions())
+    const detectionsData = await faceapi
+      .detectAllFaces(video, new faceapi.TinyFaceDetectorOptions())
       .withFaceLandmarks().withFaceDescriptors();
 
     context.clearRect(0, 0, overlay.width, overlay.height);
