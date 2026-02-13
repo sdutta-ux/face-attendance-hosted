@@ -1,19 +1,32 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Face Recognition Attendance</title>
+
   <link rel="stylesheet" href="style.css">
-  <script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
+  <!-- Face API -->
+  <script defer src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
   <script defer src="config.js"></script>
   <script defer src="client.js"></script>
+
+  <style>
+    body { font-family: Arial; padding: 16px; max-width: 820px; margin: auto; }
+    h2 { margin-bottom: 10px; }
+    #camera-area { position: relative; display: inline-block; border:1px solid #ccc; border-radius:10px; overflow:hidden; }
+    video { display:block; width:360px; height:270px; background:#000; }
+    canvas { position:absolute; left:0; top:0; pointer-events:none; }
+    #controls { margin-top:14px; }
+    button { margin-right:10px; padding:8px 14px; border:none; border-radius:6px; background-color:#1976d2; color:white; cursor:pointer; }
+    button:hover { background-color:#1565c0; }
+    #status { margin-top:12px; color:#333; font-size:14px; white-space:pre-wrap; }
+  </style>
 </head>
 <body>
   <h2>Face Recognition Attendance</h2>
 
   <div id="camera-area">
-    <video id="video" autoplay muted playsinline width="360" height="270"></video>
-    <canvas id="overlay" width="360" height="270"></canvas>
+    <video id="video" autoplay muted playsinline></video>
   </div>
 
   <div id="controls">
@@ -22,8 +35,6 @@
     <button id="markBtn">Mark Attendance</button>
   </div>
 
-  <div id="status">📸 Tap “Start Camera” to begin.</div>
-
-  <a href="admin.html" target="_blank">Go to Admin Dashboard</a>
+  <div id="status">Status: Waiting...</div>
 </body>
 </html>
