@@ -7,7 +7,38 @@
 </head>
 <body>
   <h1>Admin Dashboard</h1>
-  <p>List of Employees, Advances, Payroll will appear here</p>
-  <!-- You can add dynamic content with Apps Script -->
+
+  <h2>Employees</h2>
+  <table id="employeeTable">
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Last Attendance</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+
+  <script src="config.js"></script>
+  <script>
+    async function fetchEmployees() {
+      try {
+        const res = await fetch(EXEC_URL + "?action=employees");
+        const data = await res.json();
+        const tbody = document.querySelector("#employeeTable tbody");
+        tbody.innerHTML = "";
+        data.forEach(emp => {
+          const tr = document.createElement("tr");
+          tr.innerHTML = `<td>${emp.name}</td><td>${emp.lastAttendance || 'Not yet'}</td>`;
+          tbody.appendChild(tr);
+        });
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
+    fetchEmployees();
+    setInterval(fetchEmployees, 30000); // refresh every 30 seconds
+  </script>
 </body>
 </html>
