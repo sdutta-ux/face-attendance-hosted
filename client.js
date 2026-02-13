@@ -1,85 +1,91 @@
-let video = document.getElementById('video');
-let overlay = document.getElementById('overlay');
-let context = overlay.getContext('2d');
-let detections = [];
+// client.js - Hosted frontend (mobile + camera + face-api)
+const VIDEO = document.getElementById('video');
+const STATUS = document.getElementById('status');
 
-async function loadModels() {
-  await faceapi.nets.tinyFaceDetector.loadFromUri('/models');
-  await faceapi.nets.faceLandmark68Net.loadFromUri('/models');
-  await faceapi.nets.faceRecognitionNet.loadFromUri('/models');
-  document.getElementById('status').innerText = 'Status: Models loaded';
+async function postAPI(payload) {
+  const res = await fetch(CONFIG.EXEC_URL, {
+    method: 'POST',
+    mode: 'cors',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  });
+  return res.json();
 }
 
-async function startCamera() {
-  await loadModels();
-  navigator.mediaDevices.getUserMedia({ video: true })
-    .then(stream => video.srcObject = stream)
-    .catch(err => console.error(err));
-}
-
-video.addEventListener('play', () => {
-  const displaySize = { width: video.width, height: video.height };
-  faceapi.matchDimensions(overlay, displaySize);
-
-  setInterval(async () => {
-    const detectionsData = await faceapi
-      .detectAllFaces(video, new faceapi.TinyFaceDetectorOptions())
-      .withFaceLandmarks()
-      .withFaceDescriptors();
-
-    context.clearRect(0, 0, overlay.width, overlay.height);
-
-    if (detectionsData.length > 0) {
-      detectionsData.forEach(fd => {
-        const box = fd.detection.box;
-        context.strokeStyle = 'green';
-        context.lineWidth = 2;
-        context.strokeRect(box.x, box.y, box.width, box.height);
-      });
-      document.getElementById('status').innerText = 'Status: Face detected';
-      detections = detectionsData;
-    } else {
-      document.getElementById('status').innerText = 'Status: No face detected';
-      detections = [];
-    }
-  }, 200);
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('startBtn').addEventListener('click', startCameraFlow);
+  document.getElementById('registerBtn').addEventListener('click', registerEmployee);
+  document.getElementById('markBtn').addEventListener('click', markAttendance);
+  STATUS.innerText = '📸 Tap “Start Camera” to begin.';
 });
+
+async function startCameraFlow() {
+  try {
+    STATUS.innerText = "📸 Requesting camera permission...";
+    const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" }, audio: false });
+    VIDEO.srcObject = stream;
+    await VIDEO.play();
+    STATUS.innerText = "✅ Camera allowed! Loading models...";
+    const MODEL_URL = "https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/weights/";
+    await Promise.all([
+      faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL),
+      faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL),
+      faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL)
+    ]);
+    STATUS.innerText = "🎯 Camera & models ready! You can Register or Mark Attendance.";
+  } catch (err) {
+    console.error(err);
+    STATUS.innerText =
+      "❌ Camera access denied.\n1️⃣ Allow camera in browser/site settings.\n2️⃣ Reload and tap Start Camera again.";
+  }
+}
 
 async function captureDescriptor() {
-  if (!detections.length) return null;
-  return detections[0].descriptor;
+  try {
+    const canvas = document.createElement('canvas');
+    canvas.width = VIDEO.videoWidth;
+    canvas.height = VIDEO.videoHeight;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(VIDEO, 0, 0, canvas.width, canvas.height);
+    const detection = await faceapi.detectSingleFace(canvas, new faceapi.TinyFaceDetectorOptions())
+      .withFaceLandmarks().withFaceDescriptor();
+    if (!detection) return null;
+    return Array.from(detection.descriptor);
+  } catch (err) { console.error(err); return null; }
 }
 
-document.getElementById('startCamera').addEventListener('click', startCamera);
+function getFrameBase64() {
+  const canvas = document.createElement('canvas');
+  canvas.width = VIDEO.videoWidth;
+  canvas.height = VIDEO.videoHeight;
+  const ctx = canvas.getContext('2d');
+  ctx.drawImage(VIDEO, 0, 0, canvas.width, canvas.height);
+  return canvas.toDataURL('image/jpeg');
+}
 
-document.getElementById('register').addEventListener('click', async () => {
-  const name = prompt('Enter Employee Name:');
-  if (!name) return alert('Name is required');
+async function registerEmployee() {
+  const empId = prompt('Employee ID (e.g. E001):'); if (!empId) return;
+  const name = prompt('Full name:'); if (!name) return;
+  const category = prompt('Category (Rolled/Unrolled/Contract):','Rolled');
+  const department = prompt('Department:','General');
+
+  STATUS.innerText = '🔍 Capturing face...';
   const descriptor = await captureDescriptor();
-  if (!descriptor) return alert('No face detected!');
+  if (!descriptor) return alert('No face detected.');
 
-  const payload = { name, descriptor: Array.from(descriptor) };
-  fetch(EXEC_URL + '?action=register', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload)
-  })
-  .then(res => res.json())
-  .then(data => alert(data.message))
-  .catch(err => console.error(err));
-});
+  STATUS.innerText = '📡 Sending registration...';
+  const res = await postAPI({ action:'addEmployee', payload:{ empId, name, category, department, descriptor }});
+  if (res && res.status==='ok') alert('✅ Employee registered successfully.');
+  STATUS.innerText = '✅ Registration complete.';
+}
 
-document.getElementById('markAttendance').addEventListener('click', async () => {
+async function markAttendance() {
+  STATUS.innerText = '🔍 Capturing face...';
   const descriptor = await captureDescriptor();
-  if (!descriptor) return alert('No face detected!');
+  if (!descriptor) return alert('No face detected.');
 
-  const payload = { descriptor: Array.from(descriptor) };
-  fetch(EXEC_URL + '?action=mark', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload)
-  })
-  .then(res => res.json())
-  .then(data => alert(data.message))
-  .catch(err => console.error(err));
-});
+  STATUS.innerText = '📡 Sending for identification...';
+  const res = await postAPI({ action:'identify', payload:{ descriptor, image:getFrameBase64() }});
+  if (res && res.found) alert('✅ Attendance marked for ' + res.name);
+  STATUS.innerText = res && res.found ? '✅ Attendance marked for ' + res.name : '❌ No match found. Please register first.';
+}
