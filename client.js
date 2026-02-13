@@ -1,15 +1,12 @@
-// client.js - Hosted frontend (communicates with Apps Script Web App)
+// client.js - Hosted frontend (mobile camera fixed)
 const VIDEO = document.getElementById('video');
 const STATUS = document.getElementById('status');
 
 async function postAPI(payload) {
-  // POST to Apps Script exec URL. Server must implement doPost to accept JSON.
   const res = await fetch(CONFIG.EXEC_URL, {
     method: 'POST',
     mode: 'cors',
-    headers: {
-      'Content-Type': 'application/json'
-    },
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload)
   });
   return res.json();
@@ -19,20 +16,28 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('startBtn').addEventListener('click', startCameraFlow);
   document.getElementById('registerBtn').addEventListener('click', registerEmployee);
   document.getElementById('markBtn').addEventListener('click', markAttendance);
-  STATUS.innerText = '📸 Tap Start Camera to begin.';
+  STATUS.innerText = '📸 Tap “Start Camera” to begin.';
 });
 
 /* ==========================================================
-   CAMERA START FUNCTION (Fixed for Android HTTPS permission)
+   CAMERA START FUNCTION (FORCED PERMISSION VERSION)
    ========================================================== */
 async function startCameraFlow() {
   try {
-    STATUS.innerText = "📸 Requesting camera permission...";
+    STATUS.innerText = "📸 Checking camera permission...";
 
-    // Force permission popup
+    // ✅ Force Chrome to show permission prompt
     await navigator.mediaDevices.getUserMedia({ video: true });
 
-    // Now start the camera stream
+    STATUS.innerText = "🔄 Loading face recognition models...";
+    const MODEL_URL = "https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/weights/";
+    await Promise.all([
+      faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL),
+      faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL),
+      faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL)
+    ]);
+
+    STATUS.innerText = "📸 Starting camera stream...";
     const stream = await navigator.mediaDevices.getUserMedia({
       video: { facingMode: "user" },
       audio: false
@@ -40,16 +45,16 @@ async function startCameraFlow() {
 
     VIDEO.srcObject = stream;
     await VIDEO.play();
-
-    STATUS.innerText = "✅ Camera started successfully!";
+    STATUS.innerText = "✅ Camera started successfully! Ready for face capture.";
   } catch (err) {
     console.error("Camera error:", err);
     STATUS.innerText =
-      "❌ Camera permission denied or not granted.\n" +
-      "👉 Tap lock (🔒) → Permissions → Camera → Allow → Reload.";
+      "❌ Camera access denied or unavailable.\n\n👉 Fix:\n" +
+      "1️⃣ Tap the lock icon (🔒) in the address bar.\n" +
+      "2️⃣ Go to 'Permissions' → Camera → Allow.\n" +
+      "3️⃣ Reload this page.";
   }
 }
-
 
 /* ==========================================================
    LOAD MODELS
@@ -86,7 +91,7 @@ async function captureDescriptor() {
 }
 
 /* ==========================================================
-   CAPTURE CURRENT FRAME BASE64 (for logging)
+   CAPTURE CURRENT FRAME BASE64
    ========================================================== */
 function getFrameBase64() {
   const canvas = document.createElement('canvas');
