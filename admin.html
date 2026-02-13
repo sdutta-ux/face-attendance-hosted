@@ -1,44 +1,13 @@
-<!doctype html>
-<html>
+<!DOCTYPE html>
+<html lang="en">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Admin Dashboard (Hosted)</title>
-<link rel="stylesheet" href="style.css">
+  <meta charset="UTF-8">
+  <title>Admin Dashboard</title>
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
-<h2>Admin Dashboard (Hosted)</h2>
-
-<div id="actions">
-  <button id="btnListEmp">Load Employees</button>
-  <button id="btnAdvances">Load Advances</button>
-  <button id="btnPayroll">Run Payroll (this month)</button>
-</div>
-
-<div id="output"></div>
-
-<script src="config.js"></script>
-<script>
-async function postAPI(payload) {
-  const res = await fetch(CONFIG.EXEC_URL, {
-    method: 'POST', mode: 'cors', headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload)
-  });
-  return res.json();
-}
-
-document.getElementById('btnListEmp').addEventListener('click', async ()=> {
-  const r = await postAPI({action:'listEmployees'});
-  document.getElementById('output').innerText = JSON.stringify(r, null, 2);
-});
-document.getElementById('btnAdvances').addEventListener('click', async ()=> {
-  const r = await postAPI({action:'listAdvances'});
-  document.getElementById('output').innerText = JSON.stringify(r, null, 2);
-});
-document.getElementById('btnPayroll').addEventListener('click', async ()=> {
-  const now = new Date(); const y = now.getFullYear(); const m = now.getMonth()+1;
-  const r = await postAPI({action:'runPayroll', payload:{year:y, month:m}});
-  document.getElementById('output').innerText = JSON.stringify(r, null, 2);
-});
-</script>
+  <h1>Admin Dashboard</h1>
+  <p>List of Employees, Advances, Payroll will appear here</p>
+  <!-- You can add dynamic content with Apps Script -->
 </body>
 </html>
