@@ -1,6 +1,3 @@
-// =============================
-// Employee Attendance Client JS
-// =============================
 let video = document.getElementById('video');
 let overlay = document.getElementById('overlay');
 let context = overlay.getContext('2d');
@@ -27,7 +24,8 @@ video.addEventListener('play', () => {
   setInterval(async () => {
     const detectionsData = await faceapi
       .detectAllFaces(video, new faceapi.TinyFaceDetectorOptions())
-      .withFaceLandmarks().withFaceDescriptors();
+      .withFaceLandmarks()
+      .withFaceDescriptors();
 
     context.clearRect(0, 0, overlay.width, overlay.height);
 
