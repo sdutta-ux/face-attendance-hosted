@@ -1,7 +1,10 @@
-// client.js - Hosted frontend (mobile camera fixed + prompt guaranteed)
+// client.js - Hosted frontend (mobile camera fixed + reliable face capture)
 const VIDEO = document.getElementById('video');
 const STATUS = document.getElementById('status');
 
+/* ==========================================================
+   POST to Apps Script Web App
+========================================================== */
 async function postAPI(payload) {
   const res = await fetch(CONFIG.EXEC_URL, {
     method: 'POST',
@@ -12,31 +15,38 @@ async function postAPI(payload) {
   return res.json();
 }
 
+/* ==========================================================
+   INITIALIZE BUTTONS
+========================================================== */
 document.addEventListener('DOMContentLoaded', () => {
-  document.getElementById('startBtn').addEventListener('click', startCameraFlow);
-  document.getElementById('registerBtn').addEventListener('click', registerEmployee);
-  document.getElementById('markBtn').addEventListener('click', markAttendance);
-  STATUS.innerText = '📸 Tap “Start Camera” to begin.';
+  const startBtn = document.getElementById('startBtn');
+  if (startBtn) startBtn.addEventListener('click', startCameraFlow);
+
+  const registerBtn = document.getElementById('registerBtn');
+  if (registerBtn) registerBtn.addEventListener('click', registerEmployee);
+
+  const markBtn = document.getElementById('markBtn');
+  if (markBtn) markBtn.addEventListener('click', markAttendance);
+
+  STATUS.innerText = '📸 Tap "Start Camera" to begin.';
 });
 
 /* ==========================================================
-   CAMERA START FUNCTION (instant permission + preview)
+   CAMERA START FUNCTION
    ========================================================== */
 async function startCameraFlow() {
   try {
     STATUS.innerText = "📸 Requesting camera permission...";
-    // 👇 Immediate permission request — runs directly on tap
     const stream = await navigator.mediaDevices.getUserMedia({
       video: { facingMode: "user" },
       audio: false
     });
 
-    // ✅ Camera permission granted
     VIDEO.srcObject = stream;
     await VIDEO.play();
     STATUS.innerText = "✅ Camera allowed! Loading face recognition models...";
 
-    // Load models AFTER preview starts
+    // Load models AFTER camera starts
     const MODEL_URL = "https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/weights/";
     await Promise.all([
       faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL),
@@ -56,30 +66,47 @@ async function startCameraFlow() {
 }
 
 /* ==========================================================
-   CAPTURE FACE DESCRIPTOR
-   ========================================================== */
+   CAPTURE FACE DESCRIPTOR (mobile-friendly)
+========================================================== */
 async function captureDescriptor() {
   try {
-    const canvas = document.createElement('canvas');
+    // Wait briefly to stabilize camera exposure
+    await new Promise(r => setTimeout(r, 700));
+
+    const canvas = document.createElement("canvas");
     canvas.width = VIDEO.videoWidth;
     canvas.height = VIDEO.videoHeight;
-    const ctx = canvas.getContext('2d');
+    const ctx = canvas.getContext("2d");
     ctx.drawImage(VIDEO, 0, 0, canvas.width, canvas.height);
+
+    const options = new faceapi.TinyFaceDetectorOptions({
+      inputSize: 224,       // faster on mobile
+      scoreThreshold: 0.45  // easier to detect
+    });
+
     const detection = await faceapi
-      .detectSingleFace(canvas, new faceapi.TinyFaceDetectorOptions())
+      .detectSingleFace(canvas, options)
       .withFaceLandmarks()
       .withFaceDescriptor();
-    if (!detection) return null;
+
+    if (!detection) {
+      STATUS.innerText = "⚠️ No face detected — ensure good lighting & face is centered.";
+      alert("No face detected. Try again in better light.");
+      return null;
+    }
+
+    STATUS.innerText = "✅ Face captured successfully!";
     return Array.from(detection.descriptor);
   } catch (err) {
-    console.error(err);
+    console.error("Face detection error:", err);
+    STATUS.innerText = "❌ Face capture failed. Check console.";
     return null;
   }
 }
 
 /* ==========================================================
    CAPTURE CURRENT FRAME BASE64
-   ========================================================== */
+========================================================== */
 function getFrameBase64() {
   const canvas = document.createElement('canvas');
   canvas.width = VIDEO.videoWidth;
@@ -91,7 +118,7 @@ function getFrameBase64() {
 
 /* ==========================================================
    REGISTER EMPLOYEE
-   ========================================================== */
+========================================================== */
 async function registerEmployee() {
   const empId = prompt('Employee ID (e.g. E001):');
   if (!empId) return;
@@ -115,7 +142,7 @@ async function registerEmployee() {
 
 /* ==========================================================
    MARK ATTENDANCE
-   ========================================================== */
+========================================================== */
 async function markAttendance() {
   STATUS.innerText = '🔍 Capturing face...';
   const descriptor = await captureDescriptor();
