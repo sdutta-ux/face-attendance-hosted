@@ -1,0 +1,30 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Face Recognition Attendance (Hosted)</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <h2>Face Recognition Attendance (Hosted)</h2>
+  <div id="camera-area">
+    <video id="video" autoplay muted playsinline width="360" height="270"></video>
+    <canvas id="overlay" width="360" height="270"></canvas>
+  </div>
+
+  <div id="controls">
+    <button id="startBtn">▶️ Start Camera</button>
+    <button id="registerBtn">Register Employee</button>
+    <button id="markBtn">Mark Attendance</button>
+  </div>
+
+  <div id="status">📸 Tap “Start Camera” to begin.</div>
+
+  <p><a href="admin.html" target="_blank">Open Admin Dashboard</a></p>
+
+  <script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
+  <script src="config.js"></script>
+  <script src="client.js"></script>
+</body>
+</html>
