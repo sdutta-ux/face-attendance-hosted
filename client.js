@@ -1,7 +1,12 @@
-// client.js - Hosted frontend (mobile camera + fixed face detection)
+// client.js - Mobile-friendly Face Recognition Attendance
+
 const VIDEO = document.getElementById('video');
 const STATUS = document.getElementById('status');
 
+/* ==========================================================
+   POST to your Apps Script exec URL
+   Make sure CONFIG.EXEC_URL is set in config.js
+========================================================== */
 async function postAPI(payload) {
   const res = await fetch(CONFIG.EXEC_URL, {
     method: 'POST',
@@ -12,40 +17,38 @@ async function postAPI(payload) {
   return res.json();
 }
 
+/* ==========================================================
+   Initialize buttons and messages
+========================================================== */
 document.addEventListener('DOMContentLoaded', () => {
   const startBtn = document.getElementById('startBtn');
   if (startBtn) startBtn.addEventListener('click', startCameraFlow);
-  
-  const registerBtn = document.getElementById('registerBtn');
-  if (registerBtn) registerBtn.addEventListener('click', registerEmployee);
+
+  const regBtn = document.getElementById('registerBtn');
+  if (regBtn) regBtn.addEventListener('click', registerEmployee);
 
   const markBtn = document.getElementById('markBtn');
   if (markBtn) markBtn.addEventListener('click', markAttendance);
 
-  STATUS.innerText = '📸 Tap “Start Camera” to begin.';
+  STATUS.innerText = '📸 Tap "Start Camera" to begin.';
 });
 
 /* ==========================================================
-   CAMERA START FUNCTION
-   ========================================================== */
+   Start camera and preload models
+========================================================== */
 async function startCameraFlow() {
   try {
     STATUS.innerText = "📸 Requesting camera permission...";
-
-    // Request camera access
-    const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' }, audio: false });
-    VIDEO.srcObject = stream;
-
-    // Wait until video is ready
-    await new Promise(resolve => {
-      if (VIDEO.readyState >= 2) resolve();
-      else VIDEO.onloadeddata = () => resolve();
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: "user" },
+      audio: false
     });
 
+    VIDEO.srcObject = stream;
     await VIDEO.play();
-    STATUS.innerText = "✅ Camera allowed! Loading face recognition models...";
+    STATUS.innerText = "✅ Camera allowed! Loading models...";
 
-    // Load face-api.js models
+    // Load face-api models
     const MODEL_URL = "https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/weights/";
     await Promise.all([
       faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL),
@@ -55,50 +58,46 @@ async function startCameraFlow() {
 
     STATUS.innerText = "🎯 Camera & models ready! You can Register or Mark Attendance.";
   } catch (err) {
-    console.error("Camera start error:", err);
+    console.error("Camera error:", err);
     STATUS.innerText =
-      "❌ Camera access denied or unavailable.\n\n👉 Fix:\n" +
-      "1️⃣ Open browser settings → Camera\n" +
+      "❌ Camera access denied or unavailable.\n\n" +
+      "👉 Fix:\n" +
+      "1️⃣ Open browser settings → Site settings → Camera\n" +
       "2️⃣ Allow camera for this site\n" +
       "3️⃣ Reload page and tap Start Camera again.";
   }
 }
 
 /* ==========================================================
-   CAPTURE FACE DESCRIPTOR
-   ========================================================== */
+   Capture face descriptor (mobile-friendly retries)
+========================================================== */
 async function captureDescriptor() {
-  try {
-    // Ensure video is ready
-    await new Promise(resolve => {
-      if (VIDEO.readyState >= 2) resolve();
-      else VIDEO.onloadeddata = () => resolve();
-    });
+  if (!VIDEO.srcObject) return null;
 
+  for (let attempt = 0; attempt < 5; attempt++) {
     const canvas = document.createElement('canvas');
     canvas.width = VIDEO.videoWidth;
     canvas.height = VIDEO.videoHeight;
     const ctx = canvas.getContext('2d');
     ctx.drawImage(VIDEO, 0, 0, canvas.width, canvas.height);
 
-    // Detect face with higher input size for mobile
     const detection = await faceapi
-      .detectSingleFace(canvas, new faceapi.TinyFaceDetectorOptions({ inputSize: 320, scoreThreshold: 0.5 }))
+      .detectSingleFace(canvas, new faceapi.TinyFaceDetectorOptions({ inputSize: 416, scoreThreshold: 0.4 }))
       .withFaceLandmarks()
       .withFaceDescriptor();
 
-    if (!detection) return null;
-    return Array.from(detection.descriptor);
+    if (detection) return Array.from(detection.descriptor);
 
-  } catch (err) {
-    console.error("Face capture error:", err);
-    return null;
+    // Wait 500ms and try again
+    await new Promise(r => setTimeout(r, 500));
   }
+
+  return null;
 }
 
 /* ==========================================================
-   CAPTURE CURRENT FRAME BASE64
-   ========================================================== */
+   Capture current video frame as Base64
+========================================================== */
 function getFrameBase64() {
   const canvas = document.createElement('canvas');
   canvas.width = VIDEO.videoWidth;
@@ -109,19 +108,19 @@ function getFrameBase64() {
 }
 
 /* ==========================================================
-   REGISTER EMPLOYEE
-   ========================================================== */
+   Register Employee
+========================================================== */
 async function registerEmployee() {
   const empId = prompt('Employee ID (e.g. E001):');
   if (!empId) return;
-  const name = prompt('Full name:');
+  const name = prompt('Full Name:');
   if (!name) return;
   const category = prompt('Category (Rolled/Unrolled/Contract):', 'Rolled');
   const department = prompt('Department:', 'General');
 
   STATUS.innerText = '🔍 Capturing face...';
   const descriptor = await captureDescriptor();
-  if (!descriptor) return alert('⚠️ No face detected. Try again.');
+  if (!descriptor) return alert('❌ No face detected. Try again.');
 
   STATUS.innerText = '📡 Sending registration...';
   const res = await postAPI({
@@ -134,12 +133,12 @@ async function registerEmployee() {
 }
 
 /* ==========================================================
-   MARK ATTENDANCE
-   ========================================================== */
+   Mark Attendance
+========================================================== */
 async function markAttendance() {
   STATUS.innerText = '🔍 Capturing face...';
   const descriptor = await captureDescriptor();
-  if (!descriptor) return alert('⚠️ No face detected.');
+  if (!descriptor) return alert('❌ No face detected.');
 
   STATUS.innerText = '📡 Sending for identification...';
   const res = await postAPI({
